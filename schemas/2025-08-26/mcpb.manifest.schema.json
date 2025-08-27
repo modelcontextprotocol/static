@@ -1,0 +1,411 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://static.modelcontextprotocol.io/schemas/2025-08-26/mcpb.manifest.schema.json",
+  "title": "MCPB Manifest",
+  "$ref": "#/$defs/McpbManifest",
+  "$defs": {
+    "Author": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Author's name",
+          "example": "John Doe"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Author's email address",
+          "example": "john@example.com"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Author's website or profile URL",
+          "example": "https://johndoe.com"
+        }
+      }
+    },
+    "Repository": {
+      "type": "object",
+      "required": ["type", "url"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Repository type",
+          "example": "git"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Repository URL",
+          "example": "https://github.com/example/mcp-server"
+        }
+      }
+    },
+    "McpConfig": {
+      "type": "object",
+      "required": ["command"],
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "Command to execute the MCP server",
+          "example": "node"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Arguments to pass to the command",
+          "example": ["dist/index.js"]
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Environment variables to set",
+          "example": {
+            "NODE_ENV": "production"
+          }
+        },
+        "platform_overrides": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/PlatformOverride"
+          },
+          "description": "Platform-specific configuration overrides",
+          "example": {
+            "win32": {
+              "command": "node.exe"
+            }
+          }
+        }
+      }
+    },
+    "PlatformOverride": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "Platform-specific command override"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Platform-specific arguments override"
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Platform-specific environment variables override"
+        }
+      }
+    },
+    "Server": {
+      "type": "object",
+      "required": ["type", "entry_point", "mcp_config"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["python", "node", "binary"],
+          "description": "Server runtime type",
+          "example": "node"
+        },
+        "entry_point": {
+          "type": "string",
+          "description": "Entry point file or binary relative to package root",
+          "example": "dist/index.js"
+        },
+        "mcp_config": {
+          "$ref": "#/$defs/McpConfig"
+        }
+      }
+    },
+    "Tool": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Tool identifier",
+          "example": "read_file"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the tool",
+          "example": "Read contents of a file"
+        }
+      }
+    },
+    "Prompt": {
+      "type": "object",
+      "required": ["name", "text"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Prompt identifier",
+          "example": "code_review"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the prompt",
+          "example": "Review code for best practices"
+        },
+        "arguments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Arguments the prompt accepts",
+          "example": ["file_path", "language"]
+        },
+        "text": {
+          "type": "string",
+          "description": "The prompt template text",
+          "example": "Please review the following {{language}} code in {{file_path}}..."
+        }
+      }
+    },
+    "Compatibility": {
+      "type": "object",
+      "properties": {
+        "claude_desktop": {
+          "type": "string",
+          "description": "Minimum Claude Desktop version required",
+          "example": ">=1.0.0"
+        },
+        "platforms": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["darwin", "win32", "linux"]
+          },
+          "description": "Supported operating system platforms",
+          "example": ["darwin", "linux"]
+        },
+        "runtimes": {
+          "type": "object",
+          "properties": {
+            "python": {
+              "type": "string",
+              "description": "Python version requirement",
+              "example": ">=3.8"
+            },
+            "node": {
+              "type": "string",
+              "description": "Node.js version requirement",
+              "example": ">=18.0.0"
+            }
+          },
+          "description": "Runtime version requirements"
+        }
+      }
+    },
+    "UserConfigOption": {
+      "type": "object",
+      "required": ["type", "title", "description"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["string", "number", "boolean", "directory", "file"],
+          "description": "Configuration value type",
+          "example": "string"
+        },
+        "title": {
+          "type": "string",
+          "description": "Display title for the configuration option",
+          "example": "API Key"
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the configuration option",
+          "example": "Your API key for authentication"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether this configuration is required",
+          "default": false
+        },
+        "default": {
+          "oneOf": [
+            {"type": "string"},
+            {"type": "number"},
+            {"type": "boolean"},
+            {
+              "type": "array",
+              "items": {"type": "string"}
+            }
+          ],
+          "description": "Default value for the configuration"
+        },
+        "multiple": {
+          "type": "boolean",
+          "description": "Whether multiple values are allowed",
+          "default": false
+        },
+        "sensitive": {
+          "type": "boolean",
+          "description": "Whether the value contains sensitive information",
+          "default": false
+        },
+        "min": {
+          "type": "number",
+          "description": "Minimum value (for number type)"
+        },
+        "max": {
+          "type": "number",
+          "description": "Maximum value (for number type)"
+        }
+      }
+    },
+    "McpbManifest": {
+      "type": "object",
+      "required": [
+        "name",
+        "version",
+        "description",
+        "author",
+        "server"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "format": "uri",
+          "description": "JSON Schema URI for this manifest format",
+          "example": "https://static.modelcontextprotocol.io/schemas/2025-08-26/mcpb.manifest.schema.json"
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "description": "Package identifier (lowercase, alphanumeric, hyphens only)",
+          "example": "filesystem-server"
+        },
+        "display_name": {
+          "type": "string",
+          "description": "Human-readable display name",
+          "example": "Filesystem Server"
+        },
+        "version": {
+          "type": "string",
+          "description": "Package version (semantic versioning recommended)",
+          "example": "1.0.0"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Brief description of the package",
+          "example": "MCP server for filesystem operations"
+        },
+        "long_description": {
+          "type": "string",
+          "description": "Detailed description of the package",
+          "example": "A comprehensive MCP server that provides tools for reading, writing, and managing files..."
+        },
+        "author": {
+          "$ref": "#/$defs/Author"
+        },
+        "repository": {
+          "$ref": "#/$defs/Repository"
+        },
+        "homepage": {
+          "type": "string",
+          "format": "uri",
+          "description": "Project homepage URL",
+          "example": "https://example.com/mcp-server"
+        },
+        "documentation": {
+          "type": "string",
+          "format": "uri",
+          "description": "Documentation URL",
+          "example": "https://docs.example.com/mcp-server"
+        },
+        "support": {
+          "type": "string",
+          "format": "uri",
+          "description": "Support URL or email",
+          "example": "https://github.com/example/mcp-server/issues"
+        },
+        "icon": {
+          "type": "string",
+          "description": "Path to icon file within the package",
+          "example": "assets/icon.png"
+        },
+        "screenshots": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Paths to screenshot files within the package",
+          "example": ["assets/screenshot1.png", "assets/screenshot2.png"]
+        },
+        "server": {
+          "$ref": "#/$defs/Server"
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Tool"
+          },
+          "description": "List of tools provided by this server"
+        },
+        "tools_generated": {
+          "type": "boolean",
+          "description": "Whether tools are dynamically generated at runtime",
+          "default": false
+        },
+        "prompts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Prompt"
+          },
+          "description": "List of prompts provided by this server"
+        },
+        "prompts_generated": {
+          "type": "boolean",
+          "description": "Whether prompts are dynamically generated at runtime",
+          "default": false
+        },
+        "keywords": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 10,
+          "description": "Keywords for discovery",
+          "example": ["filesystem", "files", "io"]
+        },
+        "license": {
+          "type": "string",
+          "description": "SPDX license identifier",
+          "example": "MIT"
+        },
+        "compatibility": {
+          "$ref": "#/$defs/Compatibility"
+        },
+        "user_config": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/UserConfigOption"
+          },
+          "description": "User-configurable options for this server",
+          "example": {
+            "api_key": {
+              "type": "string",
+              "title": "API Key",
+              "description": "Your API key for authentication",
+              "required": true,
+              "sensitive": true
+            }
+          }
+        }
+      }
+    }
+  }
+}
