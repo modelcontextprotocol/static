@@ -6,6 +6,7 @@
   "$defs": {
     "Repository": {
       "type": "object",
+      "description": "Repository metadata for the MCP server source code. Enables users and security experts to inspect the code, improving transparency.",
       "required": [
         "url",
         "source"
@@ -14,31 +15,23 @@
         "url": {
           "type": "string",
           "format": "uri",
+          "description": "Repository URL for browsing source code. Should support both web browsing and git clone operations.",
           "example": "https://github.com/modelcontextprotocol/servers"
         },
         "source": {
           "type": "string",
-          "description": "Repository hosting service",
+          "description": "Repository hosting service identifier. Used by registries to determine validation and API access methods.",
           "example": "github"
         },
         "id": {
           "type": "string",
+          "description": "Repository identifier from the hosting service (e.g., GitHub repo ID). Owned and determined by the source forge. Should remain stable across repository renames and may be used to detect repository resurrection attacks - if a repository is deleted and recreated, the ID should change. For GitHub, use: gh api repos/<owner>/<repo> --jq '.id'",
           "example": "b94b5f7e-c7c6-d760-2c78-a5e9b8a5b8c9"
-        }
-      }
-    },
-    "VersionDetail": {
-      "type": "object",
-      "description": "Version information for this server. Defined as an object to allow for downstream extensibility (e.g. release_date)",
-      "required": [
-        "version"
-      ],
-      "properties": {
-        "version": {
+        },
+        "subfolder": {
           "type": "string",
-          "maxLength": 255,
-          "example": "1.0.2",
-          "description": "Version string for this server. SHOULD follow semantic versioning (e.g., '1.0.2', '2.1.0-alpha'). Equivalent of Implementation.version in MCP specification. Non-semantic versions are allowed but may not sort predictably."
+          "description": "Optional relative path from repository root to the server location within a monorepo or nested package structure. Must be a clean relative path.",
+          "example": "src/everything"
         }
       }
     },
@@ -47,55 +40,72 @@
       "required": [
         "name",
         "description",
-        "version_detail"
+        "version"
       ],
       "properties": {
         "name": {
           "type": "string",
-          "description": "Server name/identifier",
-          "example": "io.modelcontextprotocol/filesystem"
+          "description": "Server name in reverse-DNS format. Must contain exactly one forward slash separating namespace from server name.",
+          "example": "io.github.user/weather",
+          "pattern": "^[a-zA-Z0-9.-]+/[a-zA-Z0-9._-]+$",
+          "minLength": 3,
+          "maxLength": 200
         },
         "description": {
           "type": "string",
-          "description": "Human-readable description of the server's functionality",
-          "example": "Node.js server implementing Model Context Protocol (MCP) for filesystem operations."
+          "description": "Clear human-readable explanation of server functionality. Should focus on capabilities, not implementation details.",
+          "example": "MCP server providing weather data and forecasts via OpenWeatherMap API",
+          "minLength": 1,
+          "maxLength": 100
         },
         "status": {
           "type": "string",
-          "enum": ["active", "deprecated"],
+          "enum": ["active", "deprecated", "deleted"],
           "default": "active",
-          "description": "Server lifecycle status. 'deprecated' indicates the server is no longer recommended for new usage."
+          "description": "Server lifecycle status. 'deprecated' indicates the server is no longer recommended for new usage. 'deleted' indicates the server should never be installed and existing installations should be uninstalled - this is rare, and usually indicates malware or a legal takedown."
         },
         "repository": {
-          "$ref": "#/$defs/Repository"
+          "$ref": "#/$defs/Repository",
+          "description": "Optional repository metadata for the MCP server source code. Recommended for transparency and security inspection."
         },
-        "version_detail": {
-          "$ref": "#/$defs/VersionDetail"
+        "version": {
+          "type": "string",
+          "maxLength": 255,
+          "example": "1.0.2",
+          "description": "Version string for this server. SHOULD follow semantic versioning (e.g., '1.0.2', '2.1.0-alpha'). Equivalent of Implementation.version in MCP specification. Non-semantic versions are allowed but may not sort predictably."
         }
       }
     },
     "Package": {
       "type": "object",
-      "required": [
-        "registry_name",
-        "name",
-        "version"
-      ],
       "properties": {
-        "registry_name": {
+        "registry_type": {
           "type": "string",
-          "description": "Package registry type",
-          "example": "npm"
+          "description": "Registry type indicating how to download packages (e.g., 'npm', 'pypi', 'oci', 'nuget', 'mcpb')",
+          "examples": ["npm", "pypi", "oci", "nuget", "mcpb"]
         },
-        "name": {
+        "registry_base_url": {
           "type": "string",
-          "description": "Package name in the registry",
-          "example": "io.modelcontextprotocol/filesystem"
+          "format": "uri",
+          "description": "Base URL of the package registry",
+          "examples": ["https://registry.npmjs.org", "https://pypi.org", "https://docker.io", "https://api.nuget.org", "https://github.com", "https://gitlab.com"]
+        },
+        "identifier": {
+          "type": "string",
+          "description": "Package identifier - either a package name (for registries) or URL (for direct downloads)",
+          "examples": ["@modelcontextprotocol/server-brave-search", "https://github.com/example/releases/download/v1.0.0/package.mcpb"]
         },
         "version": {
           "type": "string",
           "description": "Package version",
-          "example": "1.0.2"
+          "example": "1.0.2",
+          "minLength": 1
+        },
+        "file_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "SHA-256 hash of the package file for integrity verification. Required for MCPB packages and optional for other package types. Authors are responsible for generating correct SHA-256 hashes when creating server.json. If present, MCP clients must validate the downloaded file matches the hash before running packages to ensure file integrity.",
+          "example": "fe333e598595000ae021bd27117db32ec69af6987f507ba7a63c90638ff633ce"
         },
         "runtime_hint": {
           "type": "string",
@@ -103,8 +113,23 @@
           "examples": [
             "npx",
             "uvx",
+            "docker",
             "dnx"
           ]
+        },
+        "transport": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StdioTransport"
+            },
+            {
+              "$ref": "#/$defs/StreamableHttpTransport"
+            },
+            {
+              "$ref": "#/$defs/SseTransport"
+            }
+          ],
+          "description": "Transport protocol configuration for the package"
         },
         "runtime_arguments": {
           "type": "array",
@@ -293,6 +318,7 @@
       ]
     },
     "Argument": {
+      "description": "Warning: Arguments construct command-line parameters that may contain user-provided input. This creates potential command injection risks if clients execute commands in a shell environment. For example, a malicious argument value like ';rm -rf ~/Development' could execute dangerous commands. Clients should prefer non-shell execution methods (e.g., posix_spawn) when possible to eliminate injection risks entirely. Where not possible, clients should obtain consent from users or agents to run the resolved command before execution.",
       "anyOf": [
         {
           "$ref": "#/$defs/PositionalArgument"
@@ -302,26 +328,70 @@
         }
       ]
     },
-    "Remote": {
+    "StdioTransport": {
       "type": "object",
       "required": [
-        "transport_type",
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "stdio"
+          ],
+          "description": "Transport type",
+          "example": "stdio"
+        }
+      }
+    },
+    "StreamableHttpTransport": {
+      "type": "object",
+      "required": [
+        "type",
         "url"
       ],
       "properties": {
-        "transport_type": {
+        "type": {
           "type": "string",
           "enum": [
-            "streamable",
+            "streamable-http"
+          ],
+          "description": "Transport type",
+          "example": "streamable-http"
+        },
+        "url": {
+          "type": "string",
+          "description": "URL template for the streamable-http transport. Variables in {curly_braces} reference argument value_hints, argument names, or environment variable names. After variable substitution, this should produce a valid URI.",
+          "example": "https://api.example.com/mcp"
+        },
+        "headers": {
+          "type": "array",
+          "description": "HTTP headers to include",
+          "items": {
+            "$ref": "#/$defs/KeyValueInput"
+          }
+        }
+      }
+    },
+    "SseTransport": {
+      "type": "object",
+      "required": [
+        "type",
+        "url"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
             "sse"
           ],
-          "description": "Transport protocol type",
+          "description": "Transport type",
           "example": "sse"
         },
         "url": {
           "type": "string",
           "format": "uri",
-          "description": "Remote server URL",
+          "description": "Server-Sent Events endpoint URL",
           "example": "https://mcp-fs.example.com/sse"
         },
         "headers": {
@@ -357,7 +427,31 @@
             "remotes": {
               "type": "array",
               "items": {
-                "$ref": "#/$defs/Remote"
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/StreamableHttpTransport"
+                  },
+                  {
+                    "$ref": "#/$defs/SseTransport"
+                  }
+                ]
+              }
+            },
+            "_meta": {
+              "type": "object",
+              "description": "Extension metadata using reverse DNS namespacing for vendor-specific data",
+              "additionalProperties": true,
+              "properties": {
+                "io.modelcontextprotocol.registry/publisher-provided": {
+                  "type": "object",
+                  "description": "Publisher-provided metadata for downstream registries",
+                  "additionalProperties": true
+                },
+                "io.modelcontextprotocol.registry/official": {
+                  "type": "object",
+                  "description": "Official MCP registry metadata (read-only, added by registry)",
+                  "additionalProperties": true
+                }
               }
             }
           }
