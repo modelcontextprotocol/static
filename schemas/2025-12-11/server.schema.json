@@ -513,7 +513,7 @@
         "url": {
           "description": "Server-Sent Events endpoint URL template. Variables in {curly_braces} are resolved based on context: In Package context, they reference argument valueHints, argument names, or environment variable names from the parent Package. In Remote context, they reference variables from the transport's 'variables' object. After variable substitution, this should produce a valid URI.",
           "example": "https://mcp-fs.example.com/sse",
-          "pattern": "^https?://[^\\s]+$",
+          "format": "uri-template",
           "type": "string"
         }
       },
@@ -559,7 +559,7 @@
         "url": {
           "description": "URL template for the streamable-http transport. Variables in {curly_braces} are resolved based on context: In Package context, they reference argument valueHints, argument names, or environment variable names from the parent Package. In Remote context, they reference variables from the transport's 'variables' object. After variable substitution, this should produce a valid URI.",
           "example": "https://api.example.com/mcp",
-          "pattern": "^https?://[^\\s]+$",
+          "format": "uri-template",
           "type": "string"
         }
       },
